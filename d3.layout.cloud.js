@@ -1,8 +1,12 @@
 // Word cloud layout by Jason Davies, http://www.jasondavies.com/word-cloud/
 // Algorithm due to Jonathan Feinberg, http://static.mrfeinberg.com/bv_ch03.pdf
 (function(exports) {
+  'use strict';
   function cloud() {
     var size = [256, 256],
+        imageHref = cloudImageHref,
+        imageWidth = cloudImageWidth,
+        imageHeight = cloudImageHeight,
         text = cloudText,
         font = cloudFont,
         fontSize = cloudFontSize,
@@ -12,6 +16,7 @@
         padding = cloudPadding,
         spiral = archimedeanSpiral,
         words = [],
+        images = [],
         timeInterval = Infinity,
         event = d3.dispatch("word", "end"),
         timer = null,
@@ -20,7 +25,6 @@
     cloud.start = function() {
       var board = zeroArray((size[0] >> 5) * size[1]),
           bounds = null,
-          n = words.length,
           i = -1,
           tags = [],
           data = words.map(function(d, i) {
@@ -32,7 +36,14 @@
             d.size = ~~fontSize.call(this, d, i);
             d.padding = padding.call(this, d, i);
             return d;
-          }).sort(function(a, b) { return b.size - a.size; });
+          }).sort(function(a, b) { return b.size - a.size; })
+          .concat(images.map(function(d, i) {
+            d.href = imageHref.call(this, d, i);
+            d.width = imageWidth.call(this, d, i);
+            d.height = imageHeight.call(this, d, i);
+            return d;
+          })),
+          n = data.length;
 
       if (timer) clearInterval(timer);
       timer = setInterval(step, 0);
@@ -63,7 +74,7 @@
           event.end(tags, bounds);
         }
       }
-    }
+    };
 
     cloud.stop = function() {
       if (timer) {
@@ -135,15 +146,40 @@
       return false;
     }
 
+    cloud.size = function(x) {
+      if (!arguments.length) return size;
+      size = [+x[0], +x[1]];
+      return cloud;
+    };
+
     cloud.words = function(x) {
       if (!arguments.length) return words;
       words = x;
       return cloud;
     };
 
-    cloud.size = function(x) {
-      if (!arguments.length) return size;
-      size = [+x[0], +x[1]];
+    cloud.images = function (x) {
+      if (!arguments.length) return images;
+      images = x;
+      return cloud;
+    };
+
+    // TODO: meta programming to reduce code copy
+    cloud.imageHref = function (x) {
+      if (!arguments.length) return imageHref;
+      imageHref = d3.functor(x);
+      return cloud;
+    };
+
+    cloud.imageWidth = function (x) {
+      if (!arguments.length) return imageWidth;
+      imageWidth = d3.functor(x);
+      return cloud;
+    };
+
+    cloud.imageHeight = function (x) {
+      if (!arguments.length) return imageHeight;
+      imageHeight = d3.functor(x);
       return cloud;
     };
 
@@ -198,6 +234,19 @@
     return d3.rebind(cloud, event, "on");
   }
 
+  // default fn for attribute access
+  function cloudImageHref(d) {
+    return d.href;
+  }
+
+  function cloudImageWidth(d) {
+    return d.width;
+  }
+
+  function cloudImageHeight(d) {
+    return d.height;
+  }
+
   function cloudText(d) {
     return d.text;
   }
@@ -231,13 +280,22 @@
         y = 0,
         maxh = 0,
         n = data.length;
+    var w, h;
     --di;
     while (++di < n) {
       d = data[di];
       c.save();
-      c.font = d.style + " " + d.weight + " " + ~~((d.size + 1) / ratio) + "px " + d.font;
-      var w = c.measureText(d.text + "m").width * ratio,
-          h = d.size << 1;
+
+      // TODO: replace with function
+      if (d.text) {
+        c.font = d.style + " " + d.weight + " " + ~~((d.size + 1) / ratio) + "px " + d.font;
+        w = c.measureText(d.text + "m").width * ratio,
+        h = d.size << 1;
+      } else if (d.image) {
+        w = d.width * ratio;
+        h = d.height * ratio;
+      }
+
       if (d.rotate) {
         var sr = Math.sin(d.rotate * cloudRadians),
             cr = Math.cos(d.rotate * cloudRadians),
@@ -259,8 +317,16 @@
       if (y + h >= ch) break;
       c.translate((x + (w >> 1)) / ratio, (y + (h >> 1)) / ratio);
       if (d.rotate) c.rotate(d.rotate * cloudRadians);
-      c.fillText(d.text, 0, 0);
-      if (d.padding) c.lineWidth = 2 * d.padding, c.strokeText(d.text, 0, 0);
+      // TODO: replace with function
+      if (d.text) {
+        c.fillText(d.text, 0, 0);
+        if (d.padding) c.lineWidth = 2 * d.padding, c.strokeText(d.text, 0, 0);
+      } else if (d.image) {
+        // TODO: handle padding
+        var img = new Image();
+        img.src = d.href;
+        c.drawImage(img, 0, 0, d.width, d.height);
+      }
       c.restore();
       d.width = w;
       d.height = h;
@@ -279,9 +345,9 @@
     while (--di >= 0) {
       d = data[di];
       if (!d.hasText) continue;
-      var w = d.width,
-          w32 = w >> 5,
-          h = d.y1 - d.y0;
+      var w32 = w >> 5;
+      w = d.width;
+      h = d.y1 - d.y0;
       // Zero the buffer
       for (var i = 0; i < h * w32; i++) sprite[i] = 0;
       x = d.xoff;
@@ -290,7 +356,7 @@
       var seen = 0,
           seenRow = -1;
       for (var j = 0; j < h; j++) {
-        for (var i = 0; i < w; i++) {
+        for (i = 0; i < w; i++) {
           var k = w32 * j + (i >> 5),
               m = pixels[((y + j) * (cw << 5) + (x + i)) << 2] ? 1 << (31 - (i % 32)) : 0;
           sprite[k] |= m;
@@ -311,7 +377,7 @@
 
   // Use mask-based collision detection.
   function cloudCollide(tag, board, sw) {
-    sw >>= 5;
+    sw = sw >> 5;
     var sprite = tag.sprite,
         w = tag.width >> 5,
         lx = tag.x - (w << 4),
