@@ -79,6 +79,9 @@
       return cloud;
     };
 
+    // place tag on board without collision of existing tags but collide on rectangle boundry
+    // @return true success
+    // @return false failed
     function place(board, tag, bounds) {
       var perimeter = [{x: 0, y: 0}, {x: size[0], y: size[1]}],
           startX = tag.x,
@@ -91,6 +94,7 @@
           dx,
           dy;
 
+      // Search on spiral for place
       while (dxdy = s(t += dt)) {
         dx = ~~dxdy[0];
         dy = ~~dxdy[1];
@@ -104,7 +108,9 @@
             tag.x + tag.x1 > size[0] || tag.y + tag.y1 > size[1]) continue;
         // TODO only check for collisions within current bounds.
         if (!bounds || !cloudCollide(tag, board, size[0])) {
+          // No collission with current board
           if (!bounds || collideRects(tag, bounds)) {
+            // Collide with bound to form a cloud
             var sprite = tag.sprite,
                 w = tag.width >> 5,
                 sw = size[0] >> 5,
@@ -260,10 +266,11 @@
       d.height = h;
       d.xoff = x;
       d.yoff = y;
-      d.x1 = w >> 1;
-      d.y1 = h >> 1;
-      d.x0 = -d.x1;
-      d.y0 = -d.y1;
+      // offset to center
+      d.x1 = w >> 1; // right offset
+      d.y1 = h >> 1; // bottom offset
+      d.x0 = -d.x1; // left offset
+      d.y0 = -d.y1; // top offset
       d.hasText = true;
       x += w;
     }
@@ -324,6 +331,7 @@
     return false;
   }
 
+  // Extend cloud bounds with new data
   function cloudBounds(bounds, d) {
     var b0 = bounds[0],
         b1 = bounds[1];
