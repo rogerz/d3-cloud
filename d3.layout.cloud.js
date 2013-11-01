@@ -38,6 +38,7 @@
             return d;
           }).sort(function(a, b) { return b.size - a.size; })
           .concat(images.map(function(d, i) {
+            d.rotate = rotate.call(this, d, i);
             d.href = imageHref.call(this, d, i);
             d.width = imageWidth.call(this, d, i);
             d.height = imageHeight.call(this, d, i);
