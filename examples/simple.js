@@ -4,9 +4,9 @@
 
 "use strict";
 var fill = d3.scale.category20();
-var size = [1024, 768];
+var dispSize = [1024, 768];
 var fontFamily = "Serif";
-var cloud = d3.layout.cloud().size(size)
+var cloud = d3.layout.cloud().size(dispSize)
 .initPos("point")
 .spiral("rectangular")
 .timeInterval(10)
@@ -15,7 +15,7 @@ var cloud = d3.layout.cloud().size(size)
 //  "Hello", "world", "normally", "you", "want", "more", "words",
 //  "than", "this"
 ].map(function(d) {
-  return {text: d, size: 400}; //  + Math.random() * 90};
+  return {text: d, size: 300}; //  + Math.random() * 90};
 }))
 .padding(0)
 .rotate(function() { return ~~(Math.random() * 6) * 30; })
@@ -23,7 +23,7 @@ var cloud = d3.layout.cloud().size(size)
 .fontSize(function(d) { return d.size; })
 window.onload = function () {
   cloud.start()
-  .images(d3.range(1000).map(function() {
+  .images(d3.range(800).map(function() {
     // image: id for generating href
     return {image: 1, img: document.getElementById("sample"), imgWidth: 32, imgHeight: 16};
   }))
@@ -36,10 +36,10 @@ window.onload = function () {
 
 function draw(tags) {
   var g = d3.select("body").append("svg")
-          .attr("width", size[0])
-          .attr("height", size[1])
+          .attr("width", dispSize[0])
+          .attr("height", dispSize[1])
           .append("g")
-          .attr("transform", "translate(" + size[0] / 2 + "," + size[1] / 2 + ")");
+          .attr("transform", "translate(" + dispSize[0] / 2 + "," + dispSize[1] / 2 + ")");
   g.selectAll("text")
   .data(tags.filter( function (d) { return !!d.text;}))
   .enter().append("text")
