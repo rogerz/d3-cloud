@@ -281,7 +281,6 @@
         y = 0,
         maxh = 0,
         n = data.length;
-    var w, h;
     --di;
     while (++di < n) {
       d = data[di];
@@ -290,11 +289,11 @@
       // TODO: replace with function
       if (d.text) {
         c.font = d.style + " " + d.weight + " " + ~~((d.size + 1) / ratio) + "px " + d.font;
-        w = c.measureText(d.text + "m").width * ratio,
-        h = d.size << 1;
+        var w = c.measureText(d.text + "m").width * ratio,
+            h = d.size << 1;
       } else if (d.image) {
-        w = d.width * ratio;
-        h = d.height * ratio;
+        var w = d.width * ratio,
+            h = d.height * ratio;
       }
 
       if (d.rotate) {
@@ -346,9 +345,9 @@
     while (--di >= 0) {
       d = data[di];
       if (!d.hasText) continue;
-      var w32 = w >> 5;
-      w = d.width;
-      h = d.y1 - d.y0;
+      var w = d.width,
+          w32 = w >> 5,
+          h = d.y1 - d.y0;
       // Zero the buffer
       for (var i = 0; i < h * w32; i++) sprite[i] = 0;
       x = d.xoff;
