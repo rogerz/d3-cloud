@@ -293,13 +293,15 @@
       c.save();
 
       // TODO: replace with function
-      if (d.text) {
+      if ('text' in d) {
         c.font = d.style + " " + d.weight + " " + ~~((d.size + 1) / ratio) + "px " + d.font;
         var w = c.measureText(d.text + "m").width * ratio,
             h = d.size << 1;
-      } else if (d.image) {
+      } else if ('image' in d) {
         var w = d.width * ratio,
             h = d.height * ratio;
+      } else {
+        throw new Error("unsupported data", d);
       }
 
       if (d.rotate) {
@@ -324,14 +326,16 @@
       c.translate((x + (w >> 1)) / ratio, (y + (h >> 1)) / ratio);
       if (d.rotate) c.rotate(d.rotate * cloudRadians);
       // TODO: replace with function
-      if (d.text) {
+      if ('text' in d) {
         c.fillText(d.text, 0, 0);
         if (d.padding) c.lineWidth = 2 * d.padding, c.strokeText(d.text, 0, 0);
-      } else if (d.image) {
+      } else if ('image' in d) {
         // TODO: handle padding
         var img = new Image();
         img.src = d.href;
         c.drawImage(img, 0, 0, d.width, d.height);
+      } else {
+        throw new Error("unsupported data", d);
       }
       c.restore();
       d.width = w;
