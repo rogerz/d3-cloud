@@ -15,6 +15,7 @@
         rotate = cloudRotate,
         padding = cloudPadding,
         spiral = archimedeanSpiral,
+        initPos = centerAreaPos,
         words = [],
         images = [],
         timeInterval = Infinity,
@@ -57,8 +58,7 @@
             d;
         while (+new Date - start < timeInterval && ++i < n && timer) {
           d = data[i];
-          d.x = (size[0] * (Math.random() + .5)) >> 1;
-          d.y = (size[1] * (Math.random() + .5)) >> 1;
+          initPos(d, size);
           cloudSprite(d, data, i);
           if (d.hasText && place(board, d, bounds)) {
             tags.push(d);
@@ -217,6 +217,12 @@
     cloud.spiral = function(x) {
       if (!arguments.length) return spiral;
       spiral = spirals[x + ""] || x;
+      return cloud;
+    };
+
+    cloud.initPos = function (x) {
+      if (!arguments.length) return initPos;
+      initPos = initPosOpts[x + ""] || x;
       return cloud;
     };
 
@@ -436,6 +442,18 @@
     };
   }
 
+  // init symbols position at specified point so it will result in compact layout
+  function centerPointPos(d, size) {
+    d.x = size[0] >> 1;
+    d.y = size[1] >> 1;
+  }
+
+  // init symbols position in a rectangle so it will result in loose layout
+  function centerAreaPos(d, size) {
+    d.x = (size[0] * (Math.random() + 0.5)) >> 1;
+    d.y = (size[1] * (Math.random() + 0.5)) >> 1;
+  }
+
   // TODO reuse arrays?
   function zeroArray(n) {
     var a = [],
@@ -467,7 +485,12 @@
       spirals = {
         archimedean: archimedeanSpiral,
         rectangular: rectangularSpiral
+      },
+      initPosOpts = {
+        point: centerPointPos,
+        area: centerAreaPos
       };
+
   c.fillStyle = c.strokeStyle = "red";
   c.textAlign = "center";
 
