@@ -1,7 +1,8 @@
 // Word cloud layout by Jason Davies, http://www.jasondavies.com/word-cloud/
 // Algorithm due to Jonathan Feinberg, http://static.mrfeinberg.com/bv_ch03.pdf
+/* jshint quotmark: true */
 (function(exports) {
-  'use strict';
+  "use strict";
   function cloud() {
     var size = [256, 256],
         imageHref = cloudImageHref,
@@ -41,8 +42,8 @@
           .concat(images.map(function(d, i) {
             d.rotate = rotate.call(this, d, i);
             d.href = imageHref.call(this, d, i);
-            d.width = imageWidth.call(this, d, i);
-            d.height = imageHeight.call(this, d, i);
+            d.imgWidth = imageWidth.call(this, d, i);
+            d.imgHeight = imageHeight.call(this, d, i);
             return d;
           })),
           n = data.length;
@@ -121,7 +122,7 @@
         // TODO only check for collisions within current bounds.
         if (!bounds || !cloudCollide(tag, board, size[0])) {
           // No collission with current board
-          if (!bounds || collideRects(tag, bounds)) {
+//          if (!bounds || collideRects(tag, bounds)) {
             // Collide with bound to form a cloud
             var sprite = tag.sprite,
                 w = tag.width >> 5,
@@ -141,7 +142,7 @@
             }
             delete tag.sprite;
             return true;
-          }
+//          }
         }
       }
       return false;
@@ -247,11 +248,11 @@
   }
 
   function cloudImageWidth(d) {
-    return d.width;
+    return d.imgWidth;
   }
 
   function cloudImageHeight(d) {
-    return d.height;
+    return d.imgHeight;
   }
 
   function cloudText(d) {
@@ -297,9 +298,9 @@
         c.font = d.style + " " + d.weight + " " + ~~((d.size + 1) / ratio) + "px " + d.font;
         var w = c.measureText(d.text + "m").width * ratio,
             h = d.size << 1;
-      } else if ('image' in d) {
-        var w = d.width * ratio,
-            h = d.height * ratio;
+      } else if ('img' in d) {
+        var w = d.imgWidth * ratio,
+            h = d.imgHeight * ratio;
       } else {
         throw new Error("unsupported data", d);
       }
@@ -329,11 +330,10 @@
       if ('text' in d) {
         c.fillText(d.text, 0, 0);
         if (d.padding) c.lineWidth = 2 * d.padding, c.strokeText(d.text, 0, 0);
-      } else if ('image' in d) {
+      } else if ('img' in d) {
         // TODO: handle padding
-        var img = new Image();
-        img.src = d.href;
-        c.drawImage(img, 0, 0, d.width, d.height);
+        // simulate textAlign: center, textBaseline: alphabetic
+        c.drawImage(d.img, -d.imgWidth * ratio / 2, -d.imgHeight * ratio / 2, d.imgWidth * ratio, d.imgHeight * ratio);
       } else {
         throw new Error("unsupported data", d);
       }
@@ -467,8 +467,8 @@
   }
 
   var cloudRadians = Math.PI / 180,
-      cw = 1 << 11 >> 5,
-      ch = 1 << 11,
+      cw = 1 << 11 >> 5, //1 << 11 >> 5,
+      ch = 1 << 11, //11,
       canvas,
       ratio = 1;
 
@@ -479,6 +479,8 @@
     ratio = Math.sqrt(canvas.getContext("2d").getImageData(0, 0, 1, 1).data.length >> 2);
     canvas.width = (cw << 5) / ratio;
     canvas.height = ch / ratio;
+    // show canvas for debugging
+    // document.body.appendChild(canvas);
   } else {
     // node-canvas support
     var Canvas = require("canvas");
