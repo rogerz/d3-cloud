@@ -271,8 +271,8 @@
     return Math.sqrt(d.value);
   }
 
-  function cloudRotate() {
-    return (~~(Math.random() * 6) - 3) * 30;
+  function cloudRotate(d) {
+    return d.rotate !== undefined ? d.rotate : (~~(Math.random() * 6) - 3) * 30;
   }
 
   function cloudPadding() {
@@ -448,14 +448,14 @@
 
   // init symbols position at specified point so it will result in compact layout
   function centerPointPos(d, size) {
-    d.x = size[0] >> 1;
-    d.y = size[1] >> 1;
+    if (d.x === undefined) { d.x = size[0] >> 1;}
+    if (d.y === undefined) { d.y = size[1] >> 1;}
   }
 
   // init symbols position in a rectangle so it will result in loose layout
   function centerAreaPos(d, size) {
-    d.x = (size[0] * (Math.random() + 0.5)) >> 1;
-    d.y = (size[1] * (Math.random() + 0.5)) >> 1;
+    if (d.x === undefined) { d.x = (size[0] * (Math.random() + 0.5)) >> 1;}
+    if (d.y === undefined) { d.y = (size[1] * (Math.random() + 0.5)) >> 1;}
   }
 
   // TODO reuse arrays?
