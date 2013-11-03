@@ -5,17 +5,15 @@
   "use strict";
 
   var opts = {
-    fill: d3.scale.category20(),
+    fill: function () { return "black"; }, //d3.scale.category20(),
     dispSize: [1024, 768],
     font : "Serif",
-    imgSize: [32, 16],
-    bgText: {text: "2%", size: 300, rotate: 0},
+    imgSize: [64, 32],
+    bgText: {text: " 2%", size: 300, rotate: 0},
     imgLimit: 1000,
     simInterval: 10,
     transDuration: 10
   };
-  // TODO: use fontBaseline
-  opts.bgText.y = opts.dispSize[1] / 2 + opts.bgText.size /2;
 
   var cloud = d3.layout.cloud().size(opts.dispSize)
               .spiral("rectangular")  // "rectangular, "archimedean""
@@ -81,7 +79,11 @@
         if (++imgCount >= opts.imgLimit) {
           clearInterval(timer);
         }
-        cloud.addImg(imgList[Math.floor(Math.random() * 10)]);
+        cloud.addImg({
+          image: imgList[Math.floor(Math.random() * 10)],
+          imgWidth: opts.imgSize[0],
+          imgHeight: opts.imgSize[1]
+        });
       }, opts.simInterval);
     };
   };

@@ -334,7 +334,7 @@
     if ("text" in d) {
       c.font = d.style + " " + d.weight + " " + ~~((d.size + 1) / ratio) + "px " + d.font;
       w = c.measureText(d.text + "m").width * ratio;
-      h = d.size << 1;
+      h = (d.size * ratio) << 1;
     } else if ("img" in d) {
       w = d.imgWidth * ratio;
       h = d.imgHeight * ratio;
@@ -581,6 +581,7 @@
 
   cloudContext.fillStyle = cloudContext.strokeStyle = "red";
   cloudContext.textAlign = "center";
+  cloudContext.textBaseline = "middle";
 
   exports.cloud = makeCloud;
 })(typeof exports === "undefined" ? d3.layout || (d3.layout = {}) : exports);
