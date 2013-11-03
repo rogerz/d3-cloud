@@ -37,14 +37,14 @@
               .font(opts.font)
               .fontSize(function(d) { return d.size; })
 */
-  var center = [opts.dispSize[0] / 2, opts.dispSize[1] / 2];
+  var scale = 1;
+  var offset = [opts.dispSize[0] / 2, opts.dispSize[1] / 2];
   var g = d3.select("body")
           .append("svg")
             .attr("width", opts.dispSize[0])
             .attr("height", opts.dispSize[1])
           .append("g")
-            .attr("transform", "translate(" + center + ")");
-  var scale;
+            .attr("transform", "translate(" + offset + ")");
   function draw(tags, bounds, d) {
     if (d && d.visibility === "hidden") {
       return;
@@ -53,17 +53,19 @@
     d3.selectAll("g")
     .data([bounds])
     .transition().duration(opts.transDuration)
-    .attr("transform", function (d) {
+    .attr("transform", function (b) {
       var scaleStr;
-      if (d) {
-        var scaleX = opts.dispSize[0] / (d[1].x - d[0].x);
-        var scaleY = opts.dispSize[1] / (d[1].y - d[0].y);
-        scale = Math.min(scaleX, scaleY);
+      if (b) {
+        // half size
+        var hw = opts.dispSize[0] / 2, hh = opts.dispSize[1] / 2;
+        var scaleH = 1 / (Math.max((hw - b[0].x) / hw, (b[1].x - hw) / hw));
+        var scaleW = 1 / (Math.max((hh - b[0].y) / hh, (b[1].y - hh) / hh));
+        scale = Math.min(Math.min(scaleH, scaleW));
         scaleStr = "scale(" + scale + ")";
       } else {
         scaleStr = "";
       }
-      var translate = "translate(" + center + ")";
+      var translate = "translate(" + offset + ")";
       return translate + scaleStr;
     });
 
