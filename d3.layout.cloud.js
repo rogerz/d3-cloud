@@ -20,16 +20,21 @@
         words = [],
         images = [],
         timeInterval = Infinity,
-        event = d3.dispatch("word", "end"),
+        event = d3.dispatch("placed", "end"),
         timer = null,
-        cloud = {};
+        cloud = {},
+        board = zeroArray((size[0] >> 5) * size[1]),
+        tags = [],
+        bounds = null
+        ;
 
     cloud.start = function() {
-      var board = zeroArray((size[0] >> 5) * size[1]),
-          bounds = null,
-          i = -1,
-          tags = [],
-          data = words.map(function(d, i) {
+      board = zeroArray((size[0] >> 5) * size[1]);
+      bounds = null;
+      tags = [];
+
+      var i = -1;
+      var data = words.map(function(d, i) {
             d.text = text.call(this, d, i);
             d.font = font.call(this, d, i);
             d.style = fontStyle.call(this, d, i);
@@ -55,20 +60,20 @@
       return cloud;
 
       function step() {
-        var start = +new Date,
+        var start = +new Date(),
             d;
-        while (+new Date - start < timeInterval && ++i < n && timer) {
+        while (+new Date() - start < timeInterval && ++i < n && timer) {
           d = data[i];
           initPos(d, size);
           cloudSprite(d, data, i);
           if (d.hasText && place(board, d, bounds)) {
             tags.push(d);
-            event.word(d);
             if (bounds) cloudBounds(bounds, d);
             else bounds = [{x: d.x + d.x0, y: d.y + d.y0}, {x: d.x + d.x1, y: d.y + d.y1}];
             // Temporary hack
             d.x -= size[0] >> 1;
             d.y -= size[1] >> 1;
+            event.placed(tags, bounds, d);
           }
         }
         if (i >= n) {
@@ -76,6 +81,11 @@
           event.end(tags, bounds);
         }
       }
+    };
+
+    // place symbol directly
+    cloud.place = function (d) {
+      event.placed(tags, bounds, d);
     };
 
     cloud.stop = function() {
@@ -88,7 +98,7 @@
 
     cloud.timeInterval = function(x) {
       if (!arguments.length) return timeInterval;
-      timeInterval = x == null ? Infinity : x;
+      timeInterval = x === null ? Infinity : x;
       return cloud;
     };
 
@@ -101,7 +111,7 @@
           startY = tag.y,
           maxDelta = Math.sqrt(size[0] * size[0] + size[1] * size[1]),
           s = spiral(size),
-          dt = Math.random() < .5 ? 1 : -1,
+          dt = Math.random() < 0.5 ? 1 : -1,
           t = -dt,
           dxdy,
           dx,
