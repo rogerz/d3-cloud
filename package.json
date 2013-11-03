@@ -23,6 +23,11 @@
     "canvas": "0.10.x"
   },
   "devDependencies": {
-    "uglify-js": "1.2.x"
+    "uglify-js": "1.2.x",
+    "grunt-open": "~0.2.2",
+    "grunt-contrib-watch": "~0.5.3",
+    "matchdep": "~0.3.0",
+    "grunt": "~0.4.1",
+    "grunt-express": "~1.2.1"
   }
 }
