@@ -3,7 +3,7 @@
 /* jshint quotmark: true */
 (function(exports) {
   "use strict";
-  function cloud() {
+  function makeCloud() {
     var size = [256, 256],
         imageHref = cloudImageHref,
         imageWidth = cloudImageWidth,
@@ -16,7 +16,7 @@
         rotate = cloudRotate,
         padding = cloudPadding,
         spiral = archimedeanSpiral,
-        initPos = centerAreaPos,
+        startPos = centerAreaPos,
         words = [],
         images = [],
         timeInterval = Infinity,
@@ -64,10 +64,9 @@
             d;
         while (+new Date() - start < timeInterval && ++i < n && timer) {
           d = data[i];
-          initPos(d, size);
           cloudSprite(d, cloudContext, data, i);
-          if (d.hasText && place(board, d, bounds)) {
-            addTag(d);
+          if (d.hasText) {
+            cloudPlace(d);
           }
         }
         if (i >= n) {
@@ -89,18 +88,23 @@
 
     var cloudImg = function (d) {
       var img = new Image();
-      img.src = cloudImageHref(d);
+      img.src = imageHref(d);
+      d.rotate = rotate(d);
       d.img = img;
+      d.imgWidth = imageWidth(d);
+      d.imgHeight = imageHeight(d);
       return img;
     };
 
     // Add more images
     cloud.addImg = function (d) {
+      if (typeof d === "string") {
+        d = {image: d};
+      }
       var img = cloudImg(d);
       img.onload = function () {
         cloudSprite(d);
-        d.x = d.y = 0;
-        addTag(d);
+        cloudPlace(d);
       };
     };
 
@@ -121,10 +125,8 @@
     // place tag on board without collision of existing tags but collide on rectangle boundry
     // @return true success
     // @return false failed
-    function place(board, tag, bounds) {
+    function cloudPlace(tag) {
       var perimeter = [{x: 0, y: 0}, {x: size[0], y: size[1]}],
-          startX = tag.x,
-          startY = tag.y,
           maxDelta = Math.sqrt(size[0] * size[0] + size[1] * size[1]),
           s = spiral(size),
           dt = Math.random() < 0.5 ? 1 : -1,
@@ -133,8 +135,12 @@
           dx,
           dy;
 
+      startPos(tag, size);
+      var startX = tag.x,
+          startY = tag.y;
+
       // Search on spiral for place
-      while (dxdy = s(t += dt)) {
+      while ((dxdy = s(t += dt))) {
         dx = ~~dxdy[0];
         dy = ~~dxdy[1];
 
@@ -167,6 +173,7 @@
               x += sw;
             }
             delete tag.sprite;
+            addTag(tag);
             return true;
 //          }
         }
@@ -247,9 +254,9 @@
       return cloud;
     };
 
-    cloud.initPos = function (x) {
-      if (!arguments.length) return initPos;
-      initPos = initPosOpts[x + ""] || x;
+    cloud.startPos = function (x) {
+      if (!arguments.length) return startPos;
+      startPos = startPosOpts[x + ""] || x;
       return cloud;
     };
 
@@ -270,14 +277,17 @@
 
   // default fn for attribute access
   function cloudImageHref(d) {
+    d.href = d.href || "images/" + d.image;
     return d.href;
   }
 
   function cloudImageWidth(d) {
+    d.imgWidth = d.imgWidth || 32;
     return d.imgWidth;
   }
 
   function cloudImageHeight(d) {
+    d.imgHeight = d.imgHeight || 16;
     return d.imgHeight;
   }
 
@@ -564,7 +574,7 @@
         archimedean: archimedeanSpiral,
         rectangular: rectangularSpiral
       },
-      initPosOpts = {
+      startPosOpts = {
         point: centerPointPos,
         area: centerAreaPos
       };
@@ -572,5 +582,5 @@
   cloudContext.fillStyle = cloudContext.strokeStyle = "red";
   cloudContext.textAlign = "center";
 
-  exports.cloud = cloud;
+  exports.cloud = makeCloud;
 })(typeof exports === "undefined" ? d3.layout || (d3.layout = {}) : exports);

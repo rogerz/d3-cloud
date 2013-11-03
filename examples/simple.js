@@ -10,14 +10,16 @@
     font : "Serif",
     imgSize: [32, 16],
     bgText: {text: "2%", size: 300, rotate: 0},
-    imgLimit: 10
+    imgLimit: 1000,
+    simInterval: 10,
+    transDuration: 10
   };
   // TODO: use fontBaseline
-  opts.bgText.y = opts.dispSize[1] /2 + opts.bgText.size /2;
+  opts.bgText.y = opts.dispSize[1] / 2 + opts.bgText.size /2;
 
   var cloud = d3.layout.cloud().size(opts.dispSize)
-              .initPos("point") // "point, area"
               .spiral("rectangular")  // "rectangular, "archimedean""
+              .startPos("point") // "point, area"
               .timeInterval(10)
               .words([opts.bgText]
                      // [
@@ -27,9 +29,10 @@
                      // return {text: d, size: 300}; //  + Math.random() * 90};)
                     )
               .padding(0)
-  // .rotate(function() { return ~~(Math.random() * 6) * 30; })
+              // .rotate(function() { return ~~(Math.random() * 6) * 30; })
               .font(opts.font)
-              .fontSize(function(d) { return d.size; });
+              .fontSize(function(d) { return d.size; })
+              .on("placed", draw);
 
   var g = d3.select("body")
           .append("svg")
@@ -37,22 +40,6 @@
             .attr("height", opts.dispSize[1])
             .append("g")
               .attr("transform", "translate(" + opts.dispSize[0] / 2 + "," + opts.dispSize[1] / 2 + ")");
-
-
-  // TODO: remove hacking of image preload
-  window.onload = function () {
-    cloud
-    .images(d3.range(opts.imgLimit).map(function() {
-      // image: id for generating href
-      return {image: 1, img: document.getElementById("sample"), imgWidth: opts.imgSize[0], imgHeight: opts.imgSize[1]};
-    }))
-    .imageHref(function (d) { return "images/" + d.image + ".png"; })
-    //  .imageWidth(function (d) { return d.width; })
-    //  .imageHeight(function (d) { return d.height; })
-    //  .on("end", draw)
-    .on("placed", draw)
-    .start();
-  };
 
   function draw(tags, bounds, d) {
     g.selectAll("text")
@@ -75,7 +62,7 @@
         .attr("width", function (d) { return d.imgWidth;})
         .attr("height", function (d) { return d.imgHeight;})
         .attr("transform", "scale("+ opts.dispSize[0] / d.imgWidth +")")
-      .transition().duration(2000)
+      .transition().duration(opts.transDuration)
         // TODO: use translate d3.layout.cloud.js
         .attr("transform", function(d) {
           return "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")";
@@ -83,6 +70,30 @@
     ;
   }
 
-  exports.cloud = cloud;
-  exports.opts = opts;
+  var simulate = function (opts) {
+    var timer;
+    var imgCount = 0;
+    var imgList = d3.range(10).map( function (d) {
+      return (d + 1) + ".png";
+    });
+    return function () {
+      timer = setInterval(function () {
+        if (++imgCount >= opts.imgLimit) {
+          clearInterval(timer);
+        }
+        cloud.addImg(imgList[Math.floor(Math.random() * 10)]);
+      }, opts.simInterval);
+    };
+  };
+
+  window.onload = function () {
+    cloud.start();
+    simulate(opts)();
+  };
+
+  exports.cloud = {
+    cloud: cloud,
+    opts: opts,
+    simulate: simulate
+  };
 })(typeof exports === "undefined" ? window : exports);
