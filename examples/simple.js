@@ -37,29 +37,34 @@
               .font(opts.font)
               .fontSize(function(d) { return d.size; })
 */
-
+  var center = [opts.dispSize[0] / 2, opts.dispSize[1] / 2];
   var g = d3.select("body")
           .append("svg")
             .attr("width", opts.dispSize[0])
             .attr("height", opts.dispSize[1])
-          .append("g");
-
+          .append("g")
+            .attr("transform", "translate(" + center + ")");
+  var scale;
   function draw(tags, bounds, d) {
+    if (d && d.visibility === "hidden") {
+      return;
+    }
     // update bound
     d3.selectAll("g")
     .data([bounds])
     .transition().duration(opts.transDuration)
     .attr("transform", function (d) {
-      var scale;
+      var scaleStr;
       if (d) {
         var scaleX = opts.dispSize[0] / (d[1].x - d[0].x);
-        var scaleY = opts.dispSize[1] / (d[1].y - d[1].y);
-        scale = "scale(" + Math.min(scaleX, scaleY) + ")";
+        var scaleY = opts.dispSize[1] / (d[1].y - d[0].y);
+        scale = Math.min(scaleX, scaleY);
+        scaleStr = "scale(" + scale + ")";
       } else {
-        scale = "";
+        scaleStr = "";
       }
-      var translate = "translate(" + opts.dispSize[0] / 2 + "," + opts.dispSize[1] / 2 + ")";
-      return translate + scale;
+      var translate = "translate(" + center + ")";
+      return translate + scaleStr;
     });
 
     g.selectAll("text")
@@ -82,7 +87,7 @@
         .attr("y", function (d) { return -d.imgHeight / 2;})
         .attr("width", function (d) { return d.imgWidth;})
         .attr("height", function (d) { return d.imgHeight;})
-        .attr("transform", "scale("+ opts.dispSize[0] / d.imgWidth +")")
+        .attr("transform", "scale("+ opts.dispSize[0] / d.imgWidth / scale + ")")
       .transition().duration(opts.transDuration)
         .attr("transform", function(d) {
           return "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")";

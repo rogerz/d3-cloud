@@ -79,7 +79,7 @@
     function addTag(d) {
       tags.push(d);
       if (bounds) cloudBounds(bounds, d);
-      else bounds = [{x: d.x + d.x0, y: d.y + d.y0}, {x: d.x + d.x1, y: d.y + d.y1}];
+      else if (d.visibility !== "hidden") bounds = [{x: d.x + d.x0, y: d.y + d.y0}, {x: d.x + d.x1, y: d.y + d.y1}];
 
       // Temporary hack
       d.x -= size[0] >> 1;
