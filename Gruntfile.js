@@ -6,7 +6,7 @@ module.exports = function (grunt) {
       all: {
         options: {
           port: 9000,
-          hostname: 'localhost',
+          hostname: '0.0.0.0',
           livereload: true,// TODO: livereload not working, failed to get script
           bases: [path.resolve('.')]
         }
