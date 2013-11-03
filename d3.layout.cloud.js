@@ -80,6 +80,7 @@
       tags.push(d);
       if (bounds) cloudBounds(bounds, d);
       else bounds = [{x: d.x + d.x0, y: d.y + d.y0}, {x: d.x + d.x1, y: d.y + d.y1}];
+
       // Temporary hack
       d.x -= size[0] >> 1;
       d.y -= size[1] >> 1;
@@ -93,7 +94,7 @@
       d.img = img;
       d.imgWidth = imageWidth(d);
       d.imgHeight = imageHeight(d);
-      return img;
+      return d;
     };
 
     // Add more images
@@ -101,8 +102,16 @@
       if (typeof d === "string") {
         d = {image: d};
       }
-      var img = cloudImg(d);
-      img.onload = function () {
+      cloudImg(d).img.onload = function () {
+        if (d.size === "auto") {
+          // try to fit width first
+          d.imgWidth = size[0] * 0.9;
+          d.imgHeight = d.imgWidth * this.height / this.width;
+          if (d.imgHeight > size[1] * 0.9) {
+            d.imgHeight = size[1] * 0.9;
+            d.imgWidth = d.imgHeight * this.width / this.height;
+          }
+        }
         cloudSprite(d);
         cloudPlace(d);
       };
@@ -178,7 +187,7 @@
 //          }
         }
       }
-      return false;
+      throw new Error("place failed:", tag);
     }
 
     cloud.size = function(x) {
