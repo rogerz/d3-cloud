@@ -65,15 +65,9 @@
         while (+new Date() - start < timeInterval && ++i < n && timer) {
           d = data[i];
           initPos(d, size);
-          cloudSprite(d, data, i);
+          cloudSprite(d, cloudContext, data, i);
           if (d.hasText && place(board, d, bounds)) {
-            tags.push(d);
-            if (bounds) cloudBounds(bounds, d);
-            else bounds = [{x: d.x + d.x0, y: d.y + d.y0}, {x: d.x + d.x1, y: d.y + d.y1}];
-            // Temporary hack
-            d.x -= size[0] >> 1;
-            d.y -= size[1] >> 1;
-            event.placed(tags, bounds, d);
+            addTag(d);
           }
         }
         if (i >= n) {
@@ -83,9 +77,31 @@
       }
     };
 
-    // place symbol directly
-    cloud.place = function (d) {
+    function addTag(d) {
+      tags.push(d);
+      if (bounds) cloudBounds(bounds, d);
+      else bounds = [{x: d.x + d.x0, y: d.y + d.y0}, {x: d.x + d.x1, y: d.y + d.y1}];
+      // Temporary hack
+      d.x -= size[0] >> 1;
+      d.y -= size[1] >> 1;
       event.placed(tags, bounds, d);
+    }
+
+    var cloudImg = function (d) {
+      var img = new Image();
+      img.src = cloudImageHref(d);
+      d.img = img;
+      return img;
+    };
+
+    // Add more images
+    cloud.addImg = function (d) {
+      var img = cloudImg(d);
+      img.onload = function () {
+        cloudSprite(d);
+        d.x = d.y = 0;
+        addTag(d);
+      };
     };
 
     cloud.stop = function() {
@@ -289,109 +305,152 @@
     return 1;
   }
 
+  // stage 1, draw tag on canvas
+  //
+  // @param d data to draw
+  // @param c canvas context
+  // @param s context might have dirty stat in looping
+  function cloudSpriteStage1(d, c, s) {
+    var w, h;
+    var stat = s || {
+      x: 0,
+      y: 0,
+      maxh: 0
+    };
+
+    c.save();
+
+    // TODO: replace with function
+    if ("text" in d) {
+      c.font = d.style + " " + d.weight + " " + ~~((d.size + 1) / ratio) + "px " + d.font;
+      w = c.measureText(d.text + "m").width * ratio;
+      h = d.size << 1;
+    } else if ("img" in d) {
+      w = d.imgWidth * ratio;
+      h = d.imgHeight * ratio;
+    } else {
+      throw new Error("unsupported data", d);
+    }
+
+    if (d.rotate) {
+      var sr = Math.sin(d.rotate * cloudRadians),
+          cr = Math.cos(d.rotate * cloudRadians),
+          wcr = w * cr,
+          wsr = w * sr,
+          hcr = h * cr,
+          hsr = h * sr;
+      w = (Math.max(Math.abs(wcr + hsr), Math.abs(wcr - hsr)) + 0x1f) >> 5 << 5;
+      h = ~~Math.max(Math.abs(wsr + hcr), Math.abs(wsr - hcr));
+    } else {
+      w = (w + 0x1f) >> 5 << 5;
+    }
+    if (h > stat.maxh) stat.maxh = h;
+    if (stat.x + w >= (cw << 5)) {
+      stat.x = 0;
+      stat.y += stat.maxh;
+      stat.maxh = 0;
+    }
+    if (stat.y + h >= ch) return false;
+    c.translate((stat.x + (w >> 1)) / ratio, (stat.y + (h >> 1)) / ratio);
+    if (d.rotate) c.rotate(d.rotate * cloudRadians);
+    // TODO: replace with function
+    if ("text" in d) {
+      c.fillText(d.text, 0, 0);
+      if (d.padding) {
+        c.lineWidth = 2 * d.padding;
+        c.strokeText(d.text, 0, 0);
+      }
+    } else if ("img" in d) {
+      // TODO: handle padding
+      // simulate textAlign: center, textBaseline: alphabetic
+      c.drawImage(d.img, -d.imgWidth * ratio / 2, -d.imgHeight * ratio / 2, d.imgWidth * ratio, d.imgHeight * ratio);
+    } else {
+      throw new Error("unsupported data", d);
+    }
+
+    c.restore();
+
+    d.width = w;
+    d.height = h;
+    d.xoff = stat.x;
+    d.yoff = stat.y;
+    // offset to center
+    d.x1 = w >> 1; // right offset
+    d.y1 = h >> 1; // bottom offset
+    d.x0 = -d.x1; // left offset
+    d.y0 = -d.y1; // top offset
+    d.hasText = true;
+    stat.x += w;
+    return true;
+  }
+
+  // sprite stage 2, generate sprite from pixels
+  //
+  // @param d data
+  // @param c canvas context
+  // @param pixels canvas image data
+  function cloudSpriteStage2(d, pixels) {
+    if (!d.hasText) return false;
+    var w = d.width,
+        w32 = w >> 5,
+        h = d.y1 - d.y0,
+        x,y,
+        sprite = [];
+    // Zero the buffer
+    for (var i = 0; i < h * w32; i++) sprite[i] = 0;
+    x = d.xoff;
+    if (x === null) return false;
+    y = d.yoff;
+    var seen = 0,
+        seenRow = -1;
+    for (var j = 0; j < h; j++) {
+      for (i = 0; i < w; i++) {
+        var k = w32 * j + (i >> 5),
+            m = pixels[((y + j) * (cw << 5) + (x + i)) << 2] ? 1 << (31 - (i % 32)) : 0;
+        sprite[k] |= m;
+        seen |= m;
+      }
+      if (seen) seenRow = j;
+      else {
+        d.y0++;
+        h--;
+        j--;
+        y++;
+      }
+    }
+    d.y1 = d.y0 + seenRow;
+    d.sprite = sprite.slice(0, (d.y1 - d.y0) * w32);
+    return true;
+  }
+
   // Fetches a monochrome sprite bitmap for the specified text.
   // Load in batches for speed.
-  function cloudSprite(d, data, di) {
+  function cloudSprite(d, c, data, di) {
     if (d.sprite) return;
+    c = c || cloudCanvas().getContext("2d");
+    data = data || [d];
+    di = di === undefined ? 0 : di;
+
     c.clearRect(0, 0, (cw << 5) / ratio, ch / ratio);
-    var x = 0,
-        y = 0,
-        maxh = 0,
-        n = data.length;
+    var stat = {
+        x: 0,
+        y: 0,
+        maxh: 0
+    };
     --di;
-    while (++di < n) {
+    while (++di < data.length) {
       d = data[di];
-      c.save();
-
-      // TODO: replace with function
-      if ('text' in d) {
-        c.font = d.style + " " + d.weight + " " + ~~((d.size + 1) / ratio) + "px " + d.font;
-        var w = c.measureText(d.text + "m").width * ratio,
-            h = d.size << 1;
-      } else if ('img' in d) {
-        var w = d.imgWidth * ratio,
-            h = d.imgHeight * ratio;
-      } else {
-        throw new Error("unsupported data", d);
+      if (!cloudSpriteStage1(d, c, stat)) {
+        break;
       }
-
-      if (d.rotate) {
-        var sr = Math.sin(d.rotate * cloudRadians),
-            cr = Math.cos(d.rotate * cloudRadians),
-            wcr = w * cr,
-            wsr = w * sr,
-            hcr = h * cr,
-            hsr = h * sr;
-        w = (Math.max(Math.abs(wcr + hsr), Math.abs(wcr - hsr)) + 0x1f) >> 5 << 5;
-        h = ~~Math.max(Math.abs(wsr + hcr), Math.abs(wsr - hcr));
-      } else {
-        w = (w + 0x1f) >> 5 << 5;
-      }
-      if (h > maxh) maxh = h;
-      if (x + w >= (cw << 5)) {
-        x = 0;
-        y += maxh;
-        maxh = 0;
-      }
-      if (y + h >= ch) break;
-      c.translate((x + (w >> 1)) / ratio, (y + (h >> 1)) / ratio);
-      if (d.rotate) c.rotate(d.rotate * cloudRadians);
-      // TODO: replace with function
-      if ('text' in d) {
-        c.fillText(d.text, 0, 0);
-        if (d.padding) c.lineWidth = 2 * d.padding, c.strokeText(d.text, 0, 0);
-      } else if ('img' in d) {
-        // TODO: handle padding
-        // simulate textAlign: center, textBaseline: alphabetic
-        c.drawImage(d.img, -d.imgWidth * ratio / 2, -d.imgHeight * ratio / 2, d.imgWidth * ratio, d.imgHeight * ratio);
-      } else {
-        throw new Error("unsupported data", d);
-      }
-      c.restore();
-      d.width = w;
-      d.height = h;
-      d.xoff = x;
-      d.yoff = y;
-      // offset to center
-      d.x1 = w >> 1; // right offset
-      d.y1 = h >> 1; // bottom offset
-      d.x0 = -d.x1; // left offset
-      d.y0 = -d.y1; // top offset
-      d.hasText = true;
-      x += w;
     }
-    var pixels = c.getImageData(0, 0, (cw << 5) / ratio, ch / ratio).data,
-        sprite = [];
+
+    // Getting image data is expensive so we split sprite into two stages and do this only once
+    var pixels = c.getImageData(0, 0, (cw << 5) / ratio, ch / ratio).data;
+
     while (--di >= 0) {
       d = data[di];
-      if (!d.hasText) continue;
-      var w = d.width,
-          w32 = w >> 5,
-          h = d.y1 - d.y0;
-      // Zero the buffer
-      for (var i = 0; i < h * w32; i++) sprite[i] = 0;
-      x = d.xoff;
-      if (x == null) return;
-      y = d.yoff;
-      var seen = 0,
-          seenRow = -1;
-      for (var j = 0; j < h; j++) {
-        for (i = 0; i < w; i++) {
-          var k = w32 * j + (i >> 5),
-              m = pixels[((y + j) * (cw << 5) + (x + i)) << 2] ? 1 << (31 - (i % 32)) : 0;
-          sprite[k] |= m;
-          seen |= m;
-        }
-        if (seen) seenRow = j;
-        else {
-          d.y0++;
-          h--;
-          j--;
-          y++;
-        }
-      }
-      d.y1 = d.y0 + seenRow;
-      d.sprite = sprite.slice(0, (d.y1 - d.y0) * w32);
+      cloudSpriteStage2(d, pixels);
     }
   }
 
@@ -434,7 +493,7 @@
   function archimedeanSpiral(size) {
     var e = size[0] / size[1];
     return function(t) {
-      return [e * (t *= .1) * Math.cos(t), t * Math.sin(t)];
+      return [e * (t *= 0.1) * Math.cos(t), t * Math.sin(t)];
     };
   }
 
@@ -477,27 +536,30 @@
   }
 
   var cloudRadians = Math.PI / 180,
-      cw = 1 << 11 >> 5, //1 << 11 >> 5,
-      ch = 1 << 11, //11,
-      canvas,
+      cw = 1 << 11 >> 5,
+      ch = 1 << 11,
       ratio = 1;
 
-  if (typeof document !== "undefined") {
-    canvas = document.createElement("canvas");
-    canvas.width = 1;
-    canvas.height = 1;
-    ratio = Math.sqrt(canvas.getContext("2d").getImageData(0, 0, 1, 1).data.length >> 2);
-    canvas.width = (cw << 5) / ratio;
-    canvas.height = ch / ratio;
-    // show canvas for debugging
-    // document.body.appendChild(canvas);
-  } else {
-    // node-canvas support
-    var Canvas = require("canvas");
-    canvas = new Canvas(cw << 5, ch);
+  function cloudCanvas() {
+    var canvas;
+    if (typeof document !== "undefined") {
+      canvas = document.createElement("canvas");
+      canvas.width = 1;
+      canvas.height = 1;
+      ratio = Math.sqrt(canvas.getContext("2d").getImageData(0, 0, 1, 1).data.length >> 2);
+      canvas.width = (cw << 5) / ratio;
+      canvas.height = ch / ratio;
+      // show canvas for debugging
+      // document.body.appendChild(canvas);
+    } else {
+      // node-canvas support
+      var Canvas = require("canvas");
+      canvas = new Canvas(cw << 5, ch);
+    }
+    return canvas;
   }
 
-  var c = canvas.getContext("2d"),
+  var cloudContext = cloudCanvas().getContext("2d"),
       spirals = {
         archimedean: archimedeanSpiral,
         rectangular: rectangularSpiral
@@ -507,8 +569,8 @@
         area: centerAreaPos
       };
 
-  c.fillStyle = c.strokeStyle = "red";
-  c.textAlign = "center";
+  cloudContext.fillStyle = cloudContext.strokeStyle = "red";
+  cloudContext.textAlign = "center";
 
   exports.cloud = cloud;
 })(typeof exports === "undefined" ? d3.layout || (d3.layout = {}) : exports);
