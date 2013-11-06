@@ -3,6 +3,7 @@
 /* jshint quotmark: true */
 (function(exports) {
   "use strict";
+  var d3 = d3 || require("d3");
   function makeCloud() {
     var size = [256, 256],
         imageHref = cloudImageHref,

@@ -7,7 +7,7 @@
     "dependencies": {
 	"mbostock/d3": "*"
     },
-    "main": "component-index.js",
-    "scripts": ["d3.layout.cloud.js", "component-index.js"],
+    "main": "d3.layout.cloud.js",
+    "scripts": ["d3.layout.cloud.js"],
     "license": "MIT"
 }
