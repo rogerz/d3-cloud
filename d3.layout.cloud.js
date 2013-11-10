@@ -91,11 +91,14 @@
     var cloudImg = function (d) {
       var img = new Image();
       img.src = imageHref(d);
-      d.rotate = rotate(d);
-      d.img = img;
-      d.imgWidth = imageWidth(d);
-      d.imgHeight = imageHeight(d);
-      return d;
+      // copy required properities
+      return {
+        visibility: d.visibility,
+        rotate: rotate(d),
+        img: img,
+        imgWidth: imageWidth(d),
+        imgHeight: imageHeight(d)
+      };
     };
 
     // Add more images
@@ -103,18 +106,19 @@
       if (typeof d === "string") {
         d = {image: d};
       }
-      cloudImg(d).img.onload = function () {
+      var tag = cloudImg(d);
+      tag.img.onload = function () {
         if (d.size === "auto") {
           // try to fit width first
-          d.imgWidth = size[0] * 0.9;
-          d.imgHeight = d.imgWidth * this.height / this.width;
-          if (d.imgHeight > size[1] * 0.9) {
-            d.imgHeight = size[1] * 0.9;
-            d.imgWidth = d.imgHeight * this.width / this.height;
+          tag.imgWidth = size[0] * 0.9;
+          tag.imgHeight = tag.imgWidth * this.height / this.width;
+          if (tag.imgHeight > size[1] * 0.9) {
+            tag.imgHeight = size[1] * 0.9;
+            tag.imgWidth = tag.imgHeight * this.width / this.height;
           }
         }
-        cloudSprite(d);
-        cloudPlace(d);
+        cloudSprite(tag);
+        cloudPlace(tag);
       };
     };
 
@@ -292,12 +296,12 @@
   }
 
   function cloudImageWidth(d) {
-    d.imgWidth = d.imgWidth || 32;
+    d.imgWidth = d.imgWidth || 64;
     return d.imgWidth;
   }
 
   function cloudImageHeight(d) {
-    d.imgHeight = d.imgHeight || 16;
+    d.imgHeight = d.imgHeight || 32;
     return d.imgHeight;
   }
 
