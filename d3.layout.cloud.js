@@ -21,7 +21,7 @@
         words = [],
         images = [],
         timeInterval = Infinity,
-        event = d3.dispatch("placed", "end"),
+        event = d3.dispatch("placed", "failed", "end"),
         timer = null,
         cloud = {},
         board = zeroArray((size[0] >> 5) * size[1]),
@@ -85,7 +85,6 @@
       // Temporary hack
       d.x -= size[0] >> 1;
       d.y -= size[1] >> 1;
-      event.placed(tags, bounds, d);
     }
 
     var cloudImg = function (d) {
@@ -188,11 +187,13 @@
             }
             delete tag.sprite;
             addTag(tag);
+            event.placed(tags, bounds, tag);
             return true;
 //          }
         }
       }
-      throw new Error("place failed:", tag);
+      event.failed(tag);
+      return false;
     }
 
     cloud.size = function(x) {
