@@ -5,7 +5,8 @@
     "version": "0.0.1",
     "keywords": ["d3", "layout", "visualization"],
     "dependencies": {
-	"mbostock/d3": "*"
+	"mbostock/d3": "*",
+	"jashkenas/underscore": "*"
     },
     "main": "d3.layout.cloud.js",
     "scripts": ["d3.layout.cloud.js"],

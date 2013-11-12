@@ -4,11 +4,9 @@
 (function(exports) {
   "use strict";
   var d3 = d3 || require("d3");
+  var _ = require("underscore");
   function makeCloud() {
     var size = [256, 256],
-        imageHref = cloudImageHref,
-        imageWidth = cloudImageWidth,
-        imageHeight = cloudImageHeight,
         text = cloudText,
         font = cloudFont,
         fontSize = cloudFontSize,
@@ -35,46 +33,29 @@
       tags = [];
 
       var i = -1;
-      var data = words.map(function(d, i) {
-            d.text = text.call(this, d, i);
-            d.font = font.call(this, d, i);
-            d.style = fontStyle.call(this, d, i);
-            d.weight = fontWeight.call(this, d, i);
-            d.rotate = rotate.call(this, d, i);
-            d.size = ~~fontSize.call(this, d, i);
-            d.padding = padding.call(this, d, i);
-            return d;
-          }).sort(function(a, b) { return b.size - a.size; })
-          .concat(images.map(function(d, i) {
-            d.rotate = rotate.call(this, d, i);
-            d.href = imageHref.call(this, d, i);
-            d.imgWidth = imageWidth.call(this, d, i);
-            d.imgHeight = imageHeight.call(this, d, i);
-            return d;
-          })),
-          n = data.length;
-
-      if (timer) clearInterval(timer);
-      timer = setInterval(step, 0);
-      step();
-
-      return cloud;
 
       function step() {
         var start = +new Date(),
             d;
-        while (+new Date() - start < timeInterval && ++i < n && timer) {
-          d = data[i];
-          cloudSprite(d, cloudContext, data, i);
-          if (d.hasText) {
+        while (+new Date() - start < timeInterval && ++i < images.length && timer) {
+          d = images[i];
+          cloudSprite(d, cloudContext, images, i);
+          if (d.hasPixel) {
             cloudPlace(d);
           }
         }
-        if (i >= n) {
+        if (i >= images.length) {
           cloud.stop();
           event.end(tags, bounds);
         }
       }
+
+      if (timer) clearInterval(timer);
+      timer = setInterval(step, 0);
+      cloudPlace(cloud.bgImg);
+      step();
+
+      return cloud;
     };
 
     function addTag(d) {
@@ -87,39 +68,72 @@
       d.y -= size[1] >> 1;
     }
 
-    var cloudImg = function (d) {
-      var img = new Image();
-      img.src = imageHref(d);
-      // copy required properities
-      return {
-        visibility: d.visibility,
-        rotate: rotate(d),
-        img: img,
-        imgWidth: imageWidth(d),
-        imgHeight: imageHeight(d)
-      };
+    /**
+     * Set background image
+     *
+     * It must be called before start, otherwise no effect
+     */
+    cloud.setBgImg = function (d) {
+      if (!d) {
+        cloud.bgImg = undefined;
+        return cloud;
+      }
+
+      if (!d.img) {
+        throw new Error("images must be preloaded");
+      }
+
+      _.defaults(d, {
+        position: "fixed",
+        rotate: 0,
+        move: false,
+        visibility: "hidden",
+        size: "autofit"
+      });
+
+      cloud.bgImg = d;
+      return cloud;
     };
 
+    /**
+     * Add new images to cloud
+     * @param {object} d - image data
+     *
+     * d = {
+     *   img: DOM element <img>,
+     *   position: See below,
+     *   move: re-position all existing images except the fixed ones,
+     *   x: start x,
+     *   y: start y,
+     *   rotate: rotate by degree,
+     *   visibility: "hidden"|"visible",
+     *   size: "autofit"
+     * }
+     *
+     * ## position
+     *
+     * * "auto" - default option, fill the blank
+     * * "fill" - fill the non-blank area
+     * * "fixed" - ignore collision detect, e.g. for background
+     */
     // Add more images
     cloud.addImg = function (d) {
-      if (typeof d === "string") {
-        d = {image: d};
+      var tag = _.clone(d);
+      // TODO: check image loading
+      if (!tag.img) {
+        throw new Error("<img> should be preloaded before adding");
       }
-      var tag = cloudImg(d);
-      tag.img.onload = function () {
-        if (d.size === "auto") {
-          // try to fit width first
-          tag.imgWidth = size[0] * 0.9;
-          tag.imgHeight = tag.imgWidth * this.height / this.width;
-          if (tag.imgHeight > size[1] * 0.9) {
-            tag.imgHeight = size[1] * 0.9;
-            tag.imgWidth = tag.imgHeight * this.width / this.height;
-          }
+      if (tag.size === "autofit") {
+        if (tag.img.witagth / size[0] > tag.img.height / size[1]) {
+          tag.img.witagth = size[0];
+        } else {
+          tag.img.height = size[1];
         }
-        cloudSprite(tag);
-        cloudPlace(tag);
-      };
+      }
+      tag.rotate = rotate(tag);
+      cloudPlace(tag);
     };
+
 
     cloud.stop = function() {
       if (timer) {
@@ -146,54 +160,72 @@
           t = -dt,
           dxdy,
           dx,
-          dy;
+          dy,
+          placed = false;
+
+      if (!tag.sprite) {
+        cloudSprite(tag);
+      }
 
       startPos(tag, size);
-      var startX = tag.x,
-          startY = tag.y;
 
-      // Search on spiral for place
-      while ((dxdy = s(t += dt))) {
-        dx = ~~dxdy[0];
-        dy = ~~dxdy[1];
+      if (tag.position === "fixed") {
+        placed = true;
+      } else {
+        var startX = tag.x,
+            startY = tag.y;
 
-        if (Math.min(dx, dy) > maxDelta) break;
+        placed = false;
 
-        tag.x = startX + dx;
-        tag.y = startY + dy;
+        // Search on spiral for place
+        while ((dxdy = s(t += dt))) {
+          dx = ~~dxdy[0];
+          dy = ~~dxdy[1];
 
-        if (tag.x + tag.x0 < 0 || tag.y + tag.y0 < 0 ||
-            tag.x + tag.x1 > size[0] || tag.y + tag.y1 > size[1]) continue;
-        // TODO only check for collisions within current bounds.
-        if (!bounds || !cloudCollide(tag, board, size[0])) {
-          // No collission with current board
-//          if (!bounds || collideRects(tag, bounds)) {
-            // Collide with bound to form a cloud
-            var sprite = tag.sprite,
-                w = tag.width >> 5,
-                sw = size[0] >> 5,
-                lx = tag.x - (w << 4),
-                sx = lx & 0x7f,
-                msx = 32 - sx,
-                h = tag.y1 - tag.y0,
-                x = (tag.y + tag.y0) * sw + (lx >> 5),
-                last;
-            for (var j = 0; j < h; j++) {
-              last = 0;
-              for (var i = 0; i <= w; i++) {
-                board[x + i] |= (last << msx) | (i < w ? (last = sprite[j * w + i]) >>> sx : 0);
-              }
-              x += sw;
-            }
-            delete tag.sprite;
-            addTag(tag);
-            event.placed(tags, bounds, tag);
-            return true;
-//          }
+          if (Math.min(dx, dy) > maxDelta) break;
+
+          tag.x = startX + dx;
+          tag.y = startY + dy;
+
+          // Out of boundary
+          if (tag.x + tag.x0 < 0 || tag.y + tag.y0 < 0 ||
+              tag.x + tag.x1 > size[0] || tag.y + tag.y1 > size[1]) continue;
+
+          // TODO only check for collisions within current bounds.
+          if (!bounds || !cloudCollide(tag, board, size[0])) {
+            placed = true;
+            break;
+          }
         }
       }
-      event.failed(tag);
-      return false;
+
+      if (placed) {
+        var sprite = tag.sprite,
+            w = tag.width >> 5,
+            sw = size[0] >> 5,
+            lx = tag.x - (w << 4),
+            sx = lx & 0x7f,
+            msx = 32 - sx,
+            h = tag.y1 - tag.y0,
+            x = (tag.y + tag.y0) * sw + (lx >> 5),
+            last;
+
+        for (var j = 0; j < h; j++) {
+          last = 0;
+          for (var i = 0; i <= w; i++) {
+            board[x + i] |= (last << msx) | (i < w ? (last = sprite[j * w + i]) >>> sx : 0);
+          }
+          x += sw;
+        }
+
+        delete tag.sprite;
+        addTag(tag);
+        event.placed(tags, bounds, tag);
+        return true;
+      } else {
+        event.failed(tag);
+        return false;
+      }
     }
 
     cloud.size = function(x) {
@@ -211,25 +243,6 @@
     cloud.images = function (x) {
       if (!arguments.length) return images;
       images = x;
-      return cloud;
-    };
-
-    // TODO: meta programming to reduce code copy
-    cloud.imageHref = function (x) {
-      if (!arguments.length) return imageHref;
-      imageHref = d3.functor(x);
-      return cloud;
-    };
-
-    cloud.imageWidth = function (x) {
-      if (!arguments.length) return imageWidth;
-      imageWidth = d3.functor(x);
-      return cloud;
-    };
-
-    cloud.imageHeight = function (x) {
-      if (!arguments.length) return imageHeight;
-      imageHeight = d3.functor(x);
       return cloud;
     };
 
@@ -290,22 +303,6 @@
     return d3.rebind(cloud, event, "on");
   }
 
-  // default fn for attribute access
-  function cloudImageHref(d) {
-    d.href = d.href || "images/" + d.image;
-    return d.href;
-  }
-
-  function cloudImageWidth(d) {
-    d.imgWidth = d.imgWidth || 64;
-    return d.imgWidth;
-  }
-
-  function cloudImageHeight(d) {
-    d.imgHeight = d.imgHeight || 32;
-    return d.imgHeight;
-  }
-
   function cloudText(d) {
     return d.text;
   }
@@ -351,8 +348,8 @@
       w = c.measureText(d.text + "m").width * ratio;
       h = (d.size * ratio) << 1;
     } else if ("img" in d) {
-      w = d.imgWidth * ratio;
-      h = d.imgHeight * ratio;
+      w = d.img.width * ratio;
+      h = d.img.height * ratio;
     } else {
       throw new Error("unsupported data", d);
     }
@@ -388,7 +385,7 @@
     } else if ("img" in d) {
       // TODO: handle padding
       // simulate textAlign: center, textBaseline: alphabetic
-      c.drawImage(d.img, -d.imgWidth * ratio / 2, -d.imgHeight * ratio / 2, d.imgWidth * ratio, d.imgHeight * ratio);
+      c.drawImage(d.img, -d.img.width * ratio / 2, -d.img.height * ratio / 2, d.img.width * ratio, d.img.height * ratio);
     } else {
       throw new Error("unsupported data", d);
     }
@@ -404,7 +401,7 @@
     d.y1 = h >> 1; // bottom offset
     d.x0 = -d.x1; // left offset
     d.y0 = -d.y1; // top offset
-    d.hasText = true;
+    d.hasPixel = true;
     stat.x += w;
     return true;
   }
@@ -415,7 +412,7 @@
   // @param c canvas context
   // @param pixels canvas image data
   function cloudSpriteStage2(d, pixels) {
-    if (!d.hasText) return false;
+    if (!d.hasPixel) return false;
     var w = d.width,
         w32 = w >> 5,
         h = d.y1 - d.y0,
