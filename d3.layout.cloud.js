@@ -428,7 +428,8 @@
     for (var j = 0; j < h; j++) {
       for (i = 0; i < w; i++) {
         var k = w32 * j + (i >> 5),
-            m = pixels[((y + j) * (cw << 5) + (x + i)) << 2] ? 1 << (31 - (i % 32)) : 0;
+            // check alpha value for pixel visibility
+            m = pixels[(((y + j) * (cw << 5) + (x + i)) << 2) + 3] ? 1 << (31 - (i % 32)) : 0;
         sprite[k] |= m;
         seen |= m;
       }
