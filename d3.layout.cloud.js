@@ -279,7 +279,7 @@
         event.placed(tags, bounds, tag);
         return true;
       } else {
-        event.failed(tag);
+        event.failed(tags, bounds, tag);
         return false;
       }
     }
