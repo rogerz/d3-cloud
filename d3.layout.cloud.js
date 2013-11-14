@@ -19,7 +19,7 @@
         words = [],
         images = [],
         timeInterval = Infinity,
-        event = d3.dispatch("placed", "failed", "end"),
+        event = d3.dispatch("placed", "failed", "erased", "end"),
         timer = null,
         cloud = {},
         board = zeroArray((size[0] >> 5) * size[1]),
@@ -61,7 +61,7 @@
     function addTag(d) {
       tags.push(d);
       if (bounds) cloudBounds(bounds, d);
-      else if (d.visibility !== "hidden") bounds = [{x: d.x + d.x0, y: d.y + d.y0}, {x: d.x + d.x1, y: d.y + d.y1}];
+      else bounds = [{x: d.x + d.x0, y: d.y + d.y0}, {x: d.x + d.x1, y: d.y + d.y1}];
 
       // Temporary hack
       d.x -= size[0] >> 1;
@@ -95,6 +95,13 @@
       return cloud;
     };
 
+    var generateId = (function() {
+      var id = 0;
+      return function () {
+        return id++;
+      };
+    })();
+
     /**
      * Add new images to cloud
      * @param {object} d - image data
@@ -119,6 +126,7 @@
     // Add more images
     cloud.addImg = function (d) {
       var tag = _.clone(d);
+      tag.id = generateId();
       // TODO: check image loading
       if (!tag.img) {
         throw new Error("<img> should be preloaded before adding");
@@ -134,6 +142,52 @@
       cloudPlace(tag);
     };
 
+    /**
+     * Erase the tag from board
+     */
+    function cloudErase(tag) {
+      if (!tag.sprite) {
+        throw new Error("No sprite in the tag");
+      }
+
+      // Undo temporary hack
+      tag.x += size[0] >> 1;
+      tag.y += size[1] >> 1;
+
+      var sprite = tag.sprite,
+          w = tag.width >> 5,
+          sw = size[0] >> 5,
+          lx = tag.x - (w << 4),
+          sx = lx & 0x7f,
+          msx = 32 - sx,
+          h = tag.y1 - tag.y0,
+          x = (tag.y + tag.y0) * sw + (lx >> 5),
+          last;
+
+      for (var j = 0; j < h; j++) {
+        last = 0;
+        for (var i = 0; i <= w; i++) {
+          board[x + i] &= ~((last << msx) | (i < w ? (last = sprite[j * w + i]) >>> sx : 0));
+        }
+        x += sw;
+      }
+
+      event.erased(tags);
+    }
+
+    /**
+     * Remove the oldest 'n' images
+     *
+     * @param n - total images to be removed
+     */
+    cloud.removeImg = function (n) {
+      var removed = tags.slice(0,n);
+      tags = tags.slice(n);
+      removed.forEach(function (tag) {
+        cloudErase(tag);
+      });
+      return cloud;
+    };
 
     cloud.stop = function() {
       if (timer) {
@@ -218,8 +272,10 @@
           x += sw;
         }
 
-        delete tag.sprite;
-        addTag(tag);
+        if (tag.visibility !== "hidden") {
+          addTag(tag);
+        }
+
         event.placed(tags, bounds, tag);
         return true;
       } else {
