@@ -132,8 +132,8 @@
         throw new Error("<img> should be preloaded before adding");
       }
       if (tag.size === "autofit") {
-        if (tag.img.witagth / size[0] > tag.img.height / size[1]) {
-          tag.img.witagth = size[0];
+        if (tag.img.width / size[0] > tag.img.height / size[1]) {
+          tag.img.width = size[0];
         } else {
           tag.img.height = size[1];
         }
