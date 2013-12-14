@@ -1,14 +1,20 @@
 {
-    "name": "d3-cloud",
-    "repo": "rogerz/d3-cloud",
-    "description": "hybrid cloud of text and image",
-    "version": "0.0.1",
-    "keywords": ["d3", "layout", "visualization"],
-    "dependencies": {
-	"mbostock/d3": "*",
-	"jashkenas/underscore": "*"
-    },
-    "main": "d3.layout.cloud.js",
-    "scripts": ["d3.layout.cloud.js"],
-    "license": "MIT"
+  "name": "d3-cloud",
+  "repo": "rogerz/d3-cloud",
+  "description": "hybrid cloud of text and image",
+  "version": "0.0.1",
+  "keywords": [
+    "d3",
+    "layout",
+    "visualization"
+  ],
+  "dependencies": {
+    "mbostock/d3": "*",
+    "jashkenas/underscore": "*"
+  },
+  "main": "d3.layout.cloud.js",
+  "scripts": [
+    "d3.layout.cloud.js"
+  ],
+  "license": "MIT"
 }
