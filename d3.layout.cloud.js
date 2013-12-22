@@ -125,6 +125,9 @@
      */
     // Add more images
     cloud.addImg = function (d) {
+      if (!d) {
+        return;
+      }
       var tag = _.clone(d);
       tag.id = generateId();
       // TODO: check image loading
