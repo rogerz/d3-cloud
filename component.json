@@ -9,8 +9,8 @@
     "visualization"
   ],
   "dependencies": {
-    "mbostock/d3": "*",
-    "jashkenas/underscore": "*"
+    "mbostock/d3": "v3.3.13",
+    "jashkenas/underscore": "6c102a76dbebe7b4da0c245a734483af6df644c9"
   },
   "main": "d3.layout.cloud.js",
   "scripts": [
