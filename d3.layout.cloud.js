@@ -6,7 +6,7 @@
   var d3 = d3 || require("d3");
   var _ = require("underscore");
   function makeCloud() {
-    var size = [256, 256],
+    var size,
         text = cloudText,
         font = cloudFont,
         fontSize = cloudFontSize,
@@ -22,7 +22,7 @@
         event = d3.dispatch("placed", "failed", "erased", "end"),
         timer = null,
         cloud = {},
-        board = zeroArray((size[0] >> 5) * size[1]),
+        board,
         tags = [],
         bounds = null
         ;
@@ -87,9 +87,10 @@
         position: "fixed",
         rotate: 0,
         move: false,
-        visibility: "hidden",
-        size: "autofit"
+        visibility: "hidden"
       });
+
+      size = [d.img.width, d.img.height];
 
       cloud.bgImg = d;
       return cloud;
@@ -133,13 +134,6 @@
       // TODO: check image loading
       if (!tag.img) {
         throw new Error("<img> should be preloaded before adding");
-      }
-      if (tag.size === "autofit") {
-        if (tag.img.width / size[0] > tag.img.height / size[1]) {
-          tag.img.width = size[0];
-        } else {
-          tag.img.height = size[1];
-        }
       }
       tag.rotate = rotate(tag);
       cloudPlace(tag);
